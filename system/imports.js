@@ -1,5 +1,3 @@
-var systemRoute = "https://raw.githubusercontent.com/3rdactive/webGlium/main/system/";
-
 var InitialImports = [
     systemRoute+"util.js",
     systemRoute+"noise.js",

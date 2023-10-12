@@ -23,7 +23,7 @@ var lastTick = new Date();
 var lastMs = 0;
 var fps = 1000 / lastMs;
 var totalMs = 0;
-var scaleup = 4;
+
 
 async function loadScripts(scripts){
     

@@ -243,13 +243,22 @@ class button extends component{
 }
 
 class Font {
+    static FNT04B_03=new Font(systemRoute+"util/fonts/04B_03/",10,0.7);
+    static Nintendo_DS_BIOS=new Font(systemRoute+"util/fonts/Nintendo-DS-BIOS",15,0.375);
+    static Pixeltype=new Font(systemRoute+"util/fonts/Pixeltype/",15,0.375);
+    static TypeWriter=new Font(systemRoute+"util/fonts/type_writer/",15,1);
+    static default = this.FNT04B_03;
     /*
     for a custom naming method, use something of the lines of:
     let customNamingMethod = (ascii) => `char_${ascii}.png`;
 let myFont = new Font("path/to/font/matrix/", [32, 255], customNamingMethod);
     */
-    constructor(fontPath, asciiRange = [32,255], namingMethod = null) {
+    constructor(fontPath, lineHeight = 20, characterSize = 1, asciiRange = [32,255], namingMethod = null) {
         this.characterImages = {};
+
+        this.characterSize=characterSize;
+
+        this.lineHeight=lineHeight;
 
         // Default naming method if none is provided
         const defaultNamingMethod = (ascii) => `F${ascii}.png`;
@@ -270,56 +279,124 @@ let myFont = new Font("path/to/font/matrix/", [32, 255], customNamingMethod);
 }
 
 class TextRenderer extends component {
-    constructor(text, font, lineHeight = 20, scale = 1) {
+    constructor(text, font=Font.default, scale = 1) {
         super();
         this.text = text;
         this.font = font;
-        this.lineHeight = lineHeight * scale; // Scale the line height as well
         this.scale = scale; // Scaling factor for the font size
     }
 
+    parseText() {
+        const regex = /<c value="([^"]+)">(.*?)<\/c>/g;
+        const segments = [];
+        let lastIndex = 0;
+
+        let match;
+        while ((match = regex.exec(this.text)) !== null) {
+            // Add previous uncolored segment
+            if (match.index > lastIndex) {
+                segments.push({
+                    text: this.text.substring(lastIndex, match.index),
+                    color: null
+                });
+            }
+
+            // Add colored segment
+            segments.push({
+                text: match[2],
+                color: match[1]
+            });
+
+            lastIndex = match.index + match[0].length;
+        }
+
+        // Add remaining uncolored segment
+        if (lastIndex < this.text.length) {
+            segments.push({
+                text: this.text.substring(lastIndex),
+                color: null
+            });
+        }
+
+        return segments;
+    }
+
     render(ctx, scene, parent) {
-        const lines = this.text.split("\n");
+        const segments = this.parseText();
         let x, y = parent.y + scene.camera.y;
-        x = parent.x + scene.camera.x;  
+        x = parent.x + scene.camera.x;
+        var locx = x;
+        segments.forEach(segment => {
 
-        lines.forEach(line => {
-           
+            for (let i = 0; i < segment.text.length; i++) {
+                let ascii = segment.text.charCodeAt(i);
 
-            for (let i = 0; i < line.length; i++) {
-                let ascii = line.charCodeAt(i);
+                // Handle line breaks
+                if (ascii === 10) { // ASCII code 10 for line feed/new line
+                    y += this.font.lineHeight * this.scale;
+                    locx = x;
+                    continue;
+                }
+
                 let charImage = this.font.getCharImage(ascii);
                 if (charImage) {
-                    // Apply scaling to the character image dimensions
                     const scaledWidth = charImage.width * this.scale;
                     const scaledHeight = charImage.height * this.scale;
 
-                    ctx.drawImage(charImage, x, y, scaledWidth, scaledHeight);
-                    x += scaledWidth; // Move x for the next character
+                    const buffer = document.createElement('canvas');
+                    buffer.width = scaledWidth;
+                    buffer.height = scaledHeight
+                    const btx = buffer.getContext('2d');
+    
+                    btx.drawImage(charImage, 0, 0);
+    
+                    btx.fillStyle = '#FFFFFF';
+                    if (segment.color) {
+                        btx.fillStyle=segment.color;
+                    }
+                    btx.globalCompositeOperation = 'multiply';
+                    btx.fillRect(0, 0, buffer.width, buffer.height);
+
+                    btx.globalAlpha = 1;
+                    btx.globalCompositeOperation = 'destination-in';
+                    btx.drawImage(charImage, 0, 0);
+                    ctx.drawImage(buffer, locx, y, scaledWidth, scaledHeight);
+                    locx += scaledWidth * this.font.characterSize;
                 }
             }
-
-            y += this.lineHeight; // Move y for the next line
+            if (segment.color) {
+                ctx.fillStyle = "#000000"; // Reset to default color after each segment
+            }
         });
     }
 
+
     requestRenderSize(ctx, scene, parent) {
-        const lines = this.text.split("\n");
-        let maxWidth = 0;
-        let totalHeight = this.lineHeight * lines.length;
+        const segments = this.parseText();
+        var y = 0;
+        var x = 0;
+        var maxX = 0;
+        var locx = x;
+        segments.forEach(segment => {
 
-        lines.forEach(line => {
-            let lineWidth = 0;
-            for (let i = 0; i < line.length; i++) {
-                let ascii = line.charCodeAt(i);
-                let charImage = this.font.getCharImage(ascii);
-                if (charImage) {
-                    lineWidth += charImage.width * this.scale; // Apply scale to the width
+            for (let i = 0; i < segment.text.length; i++) {
+                let ascii = segment.text.charCodeAt(i);
+
+                // Handle line breaks
+                if (ascii === 10) { // ASCII code 10 for line feed/new line
+                    y += this.font.lineHeight * this.scale;
+                    maxX=Math.max(maxX,locx);
+                    locx = x;
+                    continue;
                 }
-            }
-            maxWidth = Math.max(maxWidth, lineWidth);
-        });
 
-        return [maxWidth, totalHeight];
+                let charImage = this.font.getCharImage(ascii);
+                const scaledWidth = charImage.width * this.scale;
+                const scaledHeight = charImage.height * this.scale;
+                locx += scaledWidth * this.font.characterSize;
+            }
+        });
+        y += this.font.lineHeight * this.scale
+        return [maxX,y]
     }
 }

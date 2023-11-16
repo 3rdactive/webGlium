@@ -342,7 +342,10 @@ class TextRenderer extends component {
                 if (charImage) {
                     const scaledWidth = charImage.width * this.scale;
                     const scaledHeight = charImage.height * this.scale;
-
+                    var add = 0;
+                    if(segment.text[i]=="y"||segment.text[i]=="j"||segment.text[i]=="q"||segment.text[i]=="p"||segment.text[i]=="Y"){
+                        add=add+1*this.scale;   
+                    }
                     const buffer = document.createElement('canvas');
                     buffer.width = scaledWidth;
                     buffer.height = scaledHeight
@@ -360,7 +363,8 @@ class TextRenderer extends component {
                     btx.globalAlpha = 1;
                     btx.globalCompositeOperation = 'destination-in';
                     btx.drawImage(charImage, 0, 0);
-                    ctx.drawImage(buffer, locx, y, scaledWidth, scaledHeight);
+                    ctx.drawImage(buffer, locx, y+add, scaledWidth, scaledHeight);
+                    
                     locx += scaledWidth * this.font.characterSize;
                 }
             }
@@ -381,11 +385,11 @@ class TextRenderer extends component {
 
             for (let i = 0; i < segment.text.length; i++) {
                 let ascii = segment.text.charCodeAt(i);
-
+                maxX=Math.max(maxX,locx);
                 // Handle line breaks
                 if (ascii === 10) { // ASCII code 10 for line feed/new line
                     y += this.font.lineHeight * this.scale;
-                    maxX=Math.max(maxX,locx);
+
                     locx = x;
                     continue;
                 }

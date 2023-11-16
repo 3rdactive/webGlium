@@ -21,10 +21,8 @@ Here is an example structure of a client side using webglium: (if there is an as
   -> data 
     -> art*
       - (here you can store ur png's / jpgs of the game art)
-
     -> fonts*
       - (here you can store the font matrix's)
-
     -> scenes
       - imports.js : {
         // the file must contain something like this:

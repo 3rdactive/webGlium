@@ -76,7 +76,7 @@ class Scene{
                 var h = wd[1];
                 //console.log(wd);         
                 /*     
-                var c1,c2,c3,c4 = [0,0]
+                var c1,c2,c3,c4;
                 
                 c1=[(elementsSorted[i].x+this.camera.x)*this.camera.xscale
                 ,(elementsSorted[i].y+this.camera.y)*this.camera.yscale];
@@ -90,7 +90,7 @@ class Scene{
                 c4=[(elementsSorted[i].x+this.camera.y+w)*this.camera.xscale
                 ,(elementsSorted[i].y+this.camera.y+h)*this.camera.yscale];
 
-                var d1,d2,d3,d4 = [0,0]
+                var d1,d2,d3,d4;
 
                 d1=[0,0];
                 d2=[0,height];
@@ -99,6 +99,7 @@ class Scene{
                 */
 
                 if((w==0&&h==0) || rectRect((elementsSorted[i].x+this.camera.x)*this.camera.xscale,(elementsSorted[i].y+this.camera.y)*this.camera.yscale,w,h,0,0,width,height)){
+                    ctx.globalAlpha = 1;
                     elementsSorted[i].components[l].render(ctx,this,elementsSorted[i]);
                 }
 
@@ -164,7 +165,7 @@ class component{
     awake(ctx,scene,parent){
         
     }
-    //called when an object is rendered, (IF THE OBJECT IS OUTSIDE OF VIEW, THIS WILL NOT BE CALLED)
+    //called when the object is rendered, (IF THE OBJECT IS OUTSIDE OF VIEW, THIS WILL NOT BE CALLED)
     render(ctx,scene,parent){
         
     }
@@ -176,14 +177,15 @@ class component{
     
 }
 
-
 class SpriteRenderer extends component{
 
     img;
 
-    constructor(img){
+    constructor(img,isUI=false){
         super();
+        this.opacity=1;
         this.img=img;
+        this.isUI=isUI;
     }
     
     update(ctx,scene,parent){
@@ -199,7 +201,12 @@ class SpriteRenderer extends component{
     render(ctx,scene,parent){
         //console.log("rendered");
         ctx.fillStyle="#ffffff";
-        ctx.drawImage(this.img,parent.x+scene.camera.x,parent.y+scene.camera.y,this.img.width*parent.xscale*+scene.camera.xscale,this.img.height*parent.yscale*+scene.camera.yscale);
+        ctx.globalAlpha = this.opacity;
+        if(!this.isUI)
+            ctx.drawImage(this.img,parent.x+scene.camera.x,parent.y+scene.camera.y,this.img.width*parent.xscale*+scene.camera.xscale,this.img.height*parent.yscale*+scene.camera.yscale);
+        else
+            ctx.drawImage(this.img,parent.x,parent.y,this.img.width*parent.xscale*+scene.camera.xscale,this.img.height*parent.yscale*+scene.camera.yscale);
+
 
     }
     requestRenderSize(ctx,scene,parent){
@@ -208,13 +215,12 @@ class SpriteRenderer extends component{
     }
 }
 
-class UISpriteRenderer extends component{
+class UISpriteRenderer extends SpriteRenderer{
 
-    img=new Image();
 
     constructor(img){
-        super();
-        this.img=img;
+        super(img,true);
+        console.warn(`the UISpriteRender class is deprecated, for the same effect use SpriteRenderer with "isUI" set to "true"`)
     }
     
     update(ctx,scene,parent){
@@ -226,16 +232,6 @@ class UISpriteRenderer extends component{
     sceneAwake(ctx,scene,parent){
 
     }
-
-    render(ctx,scene,parent){
-
-        ctx.fillStyle="#ffffff";
-        ctx.drawImage(this.img,parent.x,parent.y,this.img.width*parent.xscale*+scene.camera.xscale,this.img.height*parent.yscale*+scene.camera.yscale);
-
-    }
-    requestRenderSize(ctx,scene,parent){
-        return[this.img.width,this.img.height];
-    }
 }
 
 class button extends component{
@@ -243,7 +239,7 @@ class button extends component{
 }
 
 class Font {
-    static FNT04B_03=new Font(systemRoute+"util/fonts/04B_03/",10,0.7);
+    static FNT04B_03=new Font(systemRoute+"util/fonts/04B_03/",10,0.75);
     static Nintendo_DS_BIOS=new Font(systemRoute+"util/fonts/Nintendo-DS-BIOS",15,0.375);
     static Pixeltype=new Font(systemRoute+"util/fonts/Pixeltype/",15,0.375);
     static TypeWriter=new Font(systemRoute+"util/fonts/type_writer/",15,1);
@@ -279,11 +275,14 @@ let myFont = new Font("path/to/font/matrix/", [32, 255], customNamingMethod);
 }
 
 class TextRenderer extends component {
-    constructor(text, font=Font.default, scale = 1) {
+
+    constructor(text,isUI=false, font=Font.default, scale = 1) {
         super();
+        this.buffer=document.createElement('canvas');
         this.text = text;
         this.font = font;
         this.scale = scale; // Scaling factor for the font size
+        this.isUI=isUI;
     }
 
     parseText() {
@@ -323,8 +322,16 @@ class TextRenderer extends component {
 
     render(ctx, scene, parent) {
         const segments = this.parseText();
-        let x, y = parent.y + scene.camera.y;
-        x = parent.x + scene.camera.x;
+        var x;
+        var y;
+        if(!this.isUI){
+            y = parent.y + scene.camera.y;
+            x = parent.x + scene.camera.x;
+        }
+        else{
+            y = parent.y;
+            x = parent.x;
+        }
         var locx = x;
         segments.forEach(segment => {
 
@@ -346,10 +353,9 @@ class TextRenderer extends component {
                     if(segment.text[i]=="y"||segment.text[i]=="j"||segment.text[i]=="q"||segment.text[i]=="p"||segment.text[i]=="Y"){
                         add=add+1*this.scale;   
                     }
-                    const buffer = document.createElement('canvas');
-                    buffer.width = scaledWidth;
-                    buffer.height = scaledHeight
-                    const btx = buffer.getContext('2d');
+                    this.buffer.width = scaledWidth;
+                    this.buffer.height = scaledHeight
+                    const btx = this.buffer.getContext('2d');
     
                     btx.drawImage(charImage, 0, 0);
     
@@ -358,12 +364,13 @@ class TextRenderer extends component {
                         btx.fillStyle=segment.color;
                     }
                     btx.globalCompositeOperation = 'multiply';
-                    btx.fillRect(0, 0, buffer.width, buffer.height);
+                    btx.fillRect(0, 0, this.buffer.width, this.buffer.height);
 
                     btx.globalAlpha = 1;
                     btx.globalCompositeOperation = 'destination-in';
                     btx.drawImage(charImage, 0, 0);
-                    ctx.drawImage(buffer, locx, y+add, scaledWidth, scaledHeight);
+                    ctx.drawImage(this.buffer, locx, y+add, scaledWidth, scaledHeight);
+                    btx.clearRect(0,0,this.buffer.width,this.buffer.height);
                     
                     locx += scaledWidth * this.font.characterSize;
                 }
